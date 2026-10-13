@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Importar datos del Sheet</title>
+<style>
+  body{margin:0; background:#EEF2F1; font-family:system-ui,-apple-system,'Segoe UI',sans-serif; color:#12262B; line-height:1.5;}
+  .wrap{max-width:560px; margin:0 auto; padding:28px 16px 60px;}
+  h1{font-size:24px; margin:0 0 8px;}
+  p{color:#566B6F; font-size:15px; margin:0 0 14px;}
+  .box{background:#fff; border:1px solid #D8E2E1; border-radius:16px; padding:16px; margin-bottom:14px;}
+  label{display:block; font-weight:600; font-size:15px; margin-bottom:4px;}
+  .col{font-size:13.5px; color:#566B6F; margin:0 0 10px;}
+  input[type=file]{width:100%; font-size:15px;}
+  button{background:#12262B; color:#fff; border:none; border-radius:12px; padding:13px 20px; font-weight:600; font-size:16px; cursor:pointer;}
+  button:disabled{opacity:.5;}
+  pre{background:#fff; border:1px solid #D8E2E1; border-radius:14px; padding:14px; font-size:14px; white-space:pre-wrap; margin-top:16px;}
+  a{color:#2A5D86;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Importar desde tu Google Sheet</h1>
+  <p>En el Sheet, abre cada pestaña y toca Archivo → Descargar → Valores separados por comas (.csv). Sube aquí los dos archivos. Puedes repetirlo sin duplicar datos.</p>
+
+  <div class="box">
+    <label for="fGastos">Pestaña Gastos (.csv)</label>
+    <p class="col">Columnas en este orden: Fecha, Periodo, Año, Categoria, Descripción, Monto, Quien gastó</p>
+    <input type="file" id="fGastos" accept=".csv,text/csv">
+  </div>
+  <div class="box">
+    <label for="fIngresos">Pestaña Ingresos (.csv)</label>
+    <p class="col">Columnas en este orden: Fecha, Periodo, Año, Nombre, Salario Quincenal, Porcentaje, Cantidad Real, Diferencia</p>
+    <input type="file" id="fIngresos" accept=".csv,text/csv">
+  </div>
+
+  <button type="button" id="btn">Importar</button>
+  <pre id="out" hidden></pre>
+  <p style="margin-top:16px;"><a href="/">← Volver a la app</a></p>
+</div>
+<script>
+function leer(id){
+  return new Promise(function(resolve){
+    var f = document.getElementById(id).files[0];
+    if (!f) return resolve('');
+    var r = new FileReader();
+    r.onload = function(){ resolve(String(r.result)); };
+    r.readAsText(f);
+  });
+}
+function m(n){ return '$' + Number(n).toLocaleString('es-CO'); }
+
+document.getElementById('btn').addEventListener('click', async function(){
+  var btn = document.getElementById('btn');
+  var out = document.getElementById('out');
+  btn.disabled = true; btn.textContent = 'Importando…';
+  out.hidden = false; out.textContent = '';
+  try {
+    var body = { gastos: await leer('fGastos'), ingresos: await leer('fIngresos') };
+    var res = await fetch('/api/import', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    var r = await res.json().catch(function(){ return {}; });
+    if (!res.ok) throw new Error(r.error || ('Error ' + res.status));
+    out.textContent =
+      'GASTOS\n' +
+      '  Filas leídas: ' + r.gastos.leidos + '  (suma ' + m(r.gastos.suma) + ')\n' +
+      '  Nuevas: ' + r.gastos.nuevos + ' · Ya estaban: ' + r.gastos.yaEstaban + ' · Sin leer: ' + r.gastos.omitidos + '\n\n' +
+      'APORTES\n' +
+      '  Filas leídas: ' + r.ingresos.leidos + '  (suma de lo aportado ' + m(r.ingresos.sumaAportado) + ')\n' +
+      '  Nuevas: ' + r.ingresos.nuevos + ' · Ya estaban: ' + r.ingresos.yaEstaban + ' · Sin leer: ' + r.ingresos.omitidos + '\n' +
+      (r.avisos.length ? '\nAVISOS\n  ' + r.avisos.join('\n  ') + '\n' : '') +
+      '\nCompara las sumas con las de tu Sheet. Si coinciden, quedó todo.';
+  } catch (e) {
+    out.textContent = 'No se pudo importar: ' + e.message;
+  }
+  btn.disabled = false; btn.textContent = 'Importar';
+});
+</script>
+</body>
+</html>
