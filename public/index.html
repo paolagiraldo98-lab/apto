@@ -230,7 +230,6 @@
     <div class="view" id="view-gasto">
       <section class="tarjeta">
         <h2 class="tit form-tit" id="gastoFormTitle">Nuevo gasto</h2>
-        <p class="periodo-aviso" id="gPeriodoInfo"></p>
 
         <label for="gFecha">Fecha</label>
         <input type="date" id="gFecha">
@@ -262,7 +261,6 @@
     <div class="view" id="view-ingreso">
       <section class="tarjeta">
         <h2 class="tit form-tit" id="ingresoFormTitle">Nuevo aporte</h2>
-        <p class="periodo-aviso" id="iPeriodoInfo"></p>
 
         <label>Quién aporta</label>
         <div class="persona-toggle" id="iPersona">
@@ -488,6 +486,11 @@ $('btnNuevoPeriodo').addEventListener('click', function(){
   render();
 });
 
+// Al editar, el selector de arriba salta al periodo del registro; si lo cambias antes de guardar, se guarda en el que elijas.
+function irAPeriodo(p){
+  if (p && state.periodos.indexOf(p) !== -1) { state.periodoActual = p; $('periodoSelector').value = p; render(); }
+}
+
 /* ---------- Resumen ---------- */
 function resumenPersona(ingresos, persona){
   var ing = ingresos.filter(function(i){ return i.nombre === persona; });
@@ -506,10 +509,6 @@ function render(){
   renderCategorias();
   renderAcumulado();
   renderHistorial();
-  var p = state.periodoActual;
-  var info = p ? 'Se registra en <b>' + esc(p) + '</b>' : 'Primero crea un periodo con el botón + de arriba.';
-  $('gPeriodoInfo').innerHTML = info;
-  $('iPeriodoInfo').innerHTML = info;
 }
 
 function renderMes(){
@@ -719,6 +718,7 @@ function startEditGasto(g){
   $('gDescripcion').value = g.descripcion || '';
   $('gMonto').value = g.monto;
   setPersona($('gPersona'), g.quien);
+  irAPeriodo(g.periodo);
 
   $('btnAddGasto').textContent = 'Guardar cambios';
   $('btnCancelEdit').hidden = false;
@@ -750,17 +750,18 @@ $('btnAddGasto').addEventListener('click', async function(){
   var monto = Number($('gMonto').value);
   var descripcion = $('gDescripcion').value.trim();
   var fecha = $('gFecha').value;
+  var periodo = state.periodoActual;
 
   if (!fecha || !categoria || !descripcion || !monto || !quien) {
     return setMsg('gastoMsg', 'err', 'Completa fecha, categoría, descripción, monto y quién gastó.');
   }
-  if (!state.periodoActual) {
+  if (!periodo) {
     return setMsg('gastoMsg', 'err', 'Primero crea un periodo con el botón + de arriba.');
   }
 
   var btn = $('btnAddGasto');
   btn.disabled = true; btn.textContent = 'Guardando…';
-  var payload = { fecha: fecha, periodo: state.periodoActual, categoria: categoria, descripcion: descripcion, monto: monto, quien: quien };
+  var payload = { fecha: fecha, periodo: periodo, categoria: categoria, descripcion: descripcion, monto: monto, quien: quien };
   try {
     var editando = !!editingGasto;
     var data = editando
@@ -816,6 +817,7 @@ function startEditIngreso(i){
   $('iSalario').value = i.salarioQuincenal;
   $('iPorcentaje').value = i.porcentaje;
   $('iReal').value = i.cantidadReal;
+  irAPeriodo(i.periodo);
   $('btnAddIngreso').textContent = 'Guardar cambios';
   $('btnCancelIngreso').hidden = false;
   $('btnDeleteIngreso').hidden = false;
@@ -844,18 +846,19 @@ $('btnAddIngreso').addEventListener('click', async function(){
   var porcentaje = Number($('iPorcentaje').value);
   var realTxt = $('iReal').value;
   var real = Number(realTxt);
+  var periodo = state.periodoActual;
 
   if (!nombre || !fecha || !salario || !porcentaje || realTxt === '') {
     return setMsg('ingresoMsg', 'err', 'Completa todos los campos.');
   }
-  if (!state.periodoActual) {
+  if (!periodo) {
     return setMsg('ingresoMsg', 'err', 'Primero crea un periodo con el botón + de arriba.');
   }
 
   var btn = $('btnAddIngreso');
   btn.disabled = true; btn.textContent = 'Guardando…';
   var payload = {
-    fecha: fecha, periodo: state.periodoActual, nombre: nombre,
+    fecha: fecha, periodo: periodo, nombre: nombre,
     salarioQuincenal: salario, porcentaje: porcentaje, cantidadReal: real
   };
   try {
