@@ -492,15 +492,22 @@ function irAPeriodo(p){
 }
 
 /* ---------- Resumen ---------- */
-function resumenPersona(ingresos, persona){
+// Lo que ya puso cada uno = lo que aportó + lo que gastó en el apto (los gastos cuentan como aporte).
+function resumenPersona(ingresos, gastos, persona){
   var ing = ingresos.filter(function(i){ return i.nombre === persona; });
-  var real = sumBy(ing, function(i){ return i.cantidadReal; });
+  var aporte = sumBy(ing, function(i){ return i.cantidadReal; });
+  var gasto = sumBy(gastos.filter(function(g){ return g.quien === persona; }), function(g){ return g.monto; });
+  var real = aporte + gasto;
   var debe = sumBy(ing, function(i){ return i.porcentaje; });
   return {
-    n: ing.length, real: real, debe: debe,
+    n: ing.length, aporte: aporte, gasto: gasto, real: real, debe: debe,
     falta: Math.max(debe - real, 0),
     pct: debe > 0 ? Math.min(real / debe * 100, 100) : 0
   };
+}
+function detalle(r){
+  return 'Puso ' + fmt(r.real) + ' de ' + fmt(r.debe) +
+    (r.gasto ? ' (aportó ' + fmt(r.aporte) + ' + gastó ' + fmt(r.gasto) + ')' : '');
 }
 
 function render(){
@@ -514,9 +521,10 @@ function render(){
 function renderMes(){
   var mes = mesDe(state.periodoActual);
   var ing = state.ingresos.filter(function(i){ return mesDe(i.periodo) === mes; });
+  var gmes = state.gastos.filter(function(g){ return mesDe(g.periodo) === mes; });
   var anim = !state.yaAnimo ? ' anim' : '';
   var filas = PERSONAS.map(function(persona){
-    var r = resumenPersona(ing, persona);
+    var r = resumenPersona(ing, gmes, persona);
     if (!r.n) return '';
     var cl = persona.toLowerCase();
     return '<div class="hero-row">' +
@@ -527,7 +535,7 @@ function renderMes(){
           : '<span class="hero-falta num">' + fmt(r.falta) + '<small>le falta</small></span>') +
       '</div>' +
       '<div class="pista"><div class="fill ' + cl + anim + '" style="width:' + r.pct + '%"></div></div>' +
-      '<div class="hero-nota num">Aportó ' + fmt(r.real) + ' de ' + fmt(r.debe) + '</div>' +
+      '<div class="hero-nota num">' + detalle(r) + '</div>' +
     '</div>';
   }).join('');
   if (!ing.length) {
@@ -545,7 +553,7 @@ function renderQuincena(){
 
   $('quincenaTitulo').textContent = p ? 'Aportes de ' + p : 'Aportes';
   $('quincenaFilas').innerHTML = PERSONAS.map(function(persona){
-    var r = resumenPersona(ingresos, persona);
+    var r = resumenPersona(ingresos, gastos, persona);
     var estado = !r.n
       ? '<span class="sin">sin registrar</span>'
       : (r.falta === 0
@@ -595,13 +603,13 @@ function renderAcumulado(){
   var max = Math.max.apply(null, periodos.map(function(p){ return Math.abs(porPeriodo[p] || 0); }).concat([1]));
 
   var aportes = PERSONAS.map(function(persona){
-    var r = resumenPersona(state.ingresos, persona);
+    var r = resumenPersona(state.ingresos, state.gastos, persona);
     if (!r.n) return '';
     var cl = persona.toLowerCase();
     return '<div class="barra-fila"><div class="barra-lbl"><span class="quien"><i class="dot ' + cl + '"></i>' + persona + '</span>' +
       (r.falta === 0 ? '<span class="estado ok">Al día</span>' : '<span class="num">le falta ' + fmt(r.falta) + '</span>') + '</div>' +
       '<div class="carril"><div class="fill ' + cl + '" style="width:' + r.pct + '%"></div></div>' +
-      '<div class="mini num">Aportó ' + fmt(r.real) + ' de ' + fmt(r.debe) + '</div></div>';
+      '<div class="mini num">' + detalle(r) + '</div></div>';
   }).join('');
 
   el.innerHTML =
