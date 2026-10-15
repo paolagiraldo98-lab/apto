@@ -87,6 +87,7 @@
   .tarjeta{background:var(--tarjeta); border:1px solid var(--linea); border-radius:var(--radio); padding:18px; margin-bottom:14px;}
   .tit{font-size:18px; font-weight:600; letter-spacing:-.01em; margin:0 0 6px;}
   .nota-suave{color:var(--suave); font-size:14px; margin:0;}
+  .calc{color:var(--suave); font-size:14px; margin:8px 0 0; min-height:20px;}
   .fila{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 0; border-bottom:1px solid var(--linea);}
   .fila:last-child{border-bottom:none; padding-bottom:0;}
   .cifra{font-weight:600; text-align:right;}
@@ -257,12 +258,12 @@
       </section>
     </div>
 
-    <!-- AGREGAR APORTE -->
+    <!-- AGREGAR INGRESO -->
     <div class="view" id="view-ingreso">
       <section class="tarjeta">
-        <h2 class="tit form-tit" id="ingresoFormTitle">Nuevo aporte</h2>
+        <h2 class="tit form-tit" id="ingresoFormTitle">Nuevo ingreso</h2>
 
-        <label>Quién aporta</label>
+        <label>De quién es el ingreso</label>
         <div class="persona-toggle" id="iPersona">
           <button type="button" class="jairo" data-p="Jairo">Jairo</button>
           <button type="button" class="paola" data-p="Paola">Paola</button>
@@ -274,14 +275,15 @@
         <label for="iSalario">Salario quincenal</label>
         <input type="number" id="iSalario" inputmode="numeric" min="0">
 
-        <label for="iPorcentaje">Debe aportar (60%)</label>
-        <input type="number" id="iPorcentaje" inputmode="numeric" min="0">
+        <label for="iPct">Porcentaje para el apto</label>
+        <select id="iPct"></select>
+        <div class="calc" id="iCalc"></div>
 
-        <label for="iReal">Aportó realmente</label>
-        <input type="number" id="iReal" inputmode="numeric" min="0">
+        <label for="iReal">Ya aportado aparte (opcional)</label>
+        <input type="number" id="iReal" inputmode="numeric" min="0" placeholder="0">
 
-        <button type="button" class="btn btn-primario" id="btnAddIngreso">Registrar aporte</button>
-        <button type="button" class="btn btn-peligro" id="btnDeleteIngreso" hidden>Eliminar aporte</button>
+        <button type="button" class="btn btn-primario" id="btnAddIngreso">Registrar ingreso</button>
+        <button type="button" class="btn btn-peligro" id="btnDeleteIngreso" hidden>Eliminar ingreso</button>
         <button type="button" class="btn btn-suave" id="btnCancelIngreso" hidden>Cancelar edición</button>
         <div class="msg" id="ingresoMsg" role="status"></div>
       </section>
@@ -291,7 +293,7 @@
     <div class="view" id="view-historial">
       <div class="seg" role="group" aria-label="Qué ver">
         <button type="button" id="segGastos" class="on">Gastos</button>
-        <button type="button" id="segAportes">Aportes</button>
+        <button type="button" id="segAportes">Ingresos</button>
       </div>
       <div class="filtros">
         <select id="fPersona" aria-label="Filtrar por persona">
@@ -315,7 +317,7 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>Gasto
   </button>
   <button type="button" class="tab" data-view="ingreso">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>Aporte
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>Ingreso
   </button>
   <button type="button" class="tab" data-view="historial">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7h11M8 12h11M8 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01"/></svg>Historial
@@ -336,7 +338,7 @@ var state = {
   histTipo: 'gastos', yaAnimo: false
 };
 var editingGasto = null;    // id del gasto que se está editando
-var editingIngreso = null;  // id del aporte que se está editando
+var editingIngreso = null;  // id del ingreso que se está editando
 
 /* ---------- Utilidades ---------- */
 function $(id){ return document.getElementById(id); }
@@ -492,7 +494,7 @@ function irAPeriodo(p){
 }
 
 /* ---------- Resumen ---------- */
-// Lo que ya puso cada uno = lo que aportó + lo que gastó en el apto (los gastos cuentan como aporte).
+// Debe = salario × porcentaje del ingreso. Ya puso = lo que gastó en el apto + lo aportado aparte.
 function resumenPersona(ingresos, gastos, persona){
   var ing = ingresos.filter(function(i){ return i.nombre === persona; });
   var aporte = sumBy(ing, function(i){ return i.cantidadReal; });
@@ -507,7 +509,7 @@ function resumenPersona(ingresos, gastos, persona){
 }
 function detalle(r){
   return 'Puso ' + fmt(r.real) + ' de ' + fmt(r.debe) +
-    (r.gasto ? ' (aportó ' + fmt(r.aporte) + ' + gastó ' + fmt(r.gasto) + ')' : '');
+    (r.gasto || r.aporte ? ' (gastos ' + fmt(r.gasto) + (r.aporte ? ' + aparte ' + fmt(r.aporte) : '') + ')' : '');
 }
 
 function render(){
@@ -539,7 +541,7 @@ function renderMes(){
     '</div>';
   }).join('');
   if (!ing.length) {
-    filas = '<p class="vacio-hero">Aún no hay aportes en ' + esc(mes || 'este mes') + '. Regístralos en la pestaña Aporte.</p>';
+    filas = '<p class="vacio-hero">Aún no hay ingresos en ' + esc(mes || 'este mes') + '. Regístralos en la pestaña Ingreso.</p>';
   }
   state.yaAnimo = true;
   $('heroMes').innerHTML =
@@ -551,7 +553,7 @@ function renderQuincena(){
   var gastos = state.gastos.filter(function(g){ return g.periodo === p; });
   var ingresos = state.ingresos.filter(function(i){ return i.periodo === p; });
 
-  $('quincenaTitulo').textContent = p ? 'Aportes de ' + p : 'Aportes';
+  $('quincenaTitulo').textContent = p ? 'Ingresos de ' + p : 'Ingresos';
   $('quincenaFilas').innerHTML = PERSONAS.map(function(persona){
     var r = resumenPersona(ingresos, gastos, persona);
     var estado = !r.n
@@ -591,7 +593,7 @@ function renderCategorias(){
 function renderAcumulado(){
   var el = $('acumulado');
   if (!state.gastos.length && !state.ingresos.length) {
-    el.innerHTML = '<div class="vacio">Cuando registres gastos y aportes, aquí verás el total de todos los periodos.</div>';
+    el.innerHTML = '<div class="vacio">Cuando registres gastos e ingresos, aquí verás el total de todos los periodos.</div>';
     return;
   }
   var total = sumBy(state.gastos, function(g){ return g.monto; });
@@ -619,7 +621,7 @@ function renderAcumulado(){
         var t = sumBy(state.gastos.filter(function(g){ return g.quien === persona; }), function(g){ return g.monto; });
         return '<span class="chip-q ' + persona.toLowerCase() + ' num">' + persona + ' gastó ' + fmt(t) + '</span>';
       }).join('') + '</div>' +
-    (aportes ? '<div class="sep"></div><p class="nota-suave">Aportes de todos los periodos</p>' + aportes : '') +
+    (aportes ? '<div class="sep"></div><p class="nota-suave">Lo que ha puesto cada uno, todos los periodos</p>' + aportes : '') +
     '<div class="sep"></div><p class="nota-suave">Gasto por periodo</p>' +
     periodos.slice().reverse().map(function(p){
       var t = porPeriodo[p] || 0;
@@ -652,7 +654,7 @@ function renderHistorial(){
   });
 
   if (!lista.length) {
-    el.innerHTML = '<div class="vacio">' + (esGastos ? 'No hay gastos con este filtro.' : 'No hay aportes con este filtro.') + '</div>';
+    el.innerHTML = '<div class="vacio">' + (esGastos ? 'No hay gastos con este filtro.' : 'No hay ingresos con este filtro.') + '</div>';
     return;
   }
   el.innerHTML = lista.slice(0, 100).map(function(r){
@@ -665,9 +667,9 @@ function renderHistorial(){
     }
     return '<button type="button" class="hist-item" data-id="' + r.id + '">' +
       '<span class="barra ' + esc((r.nombre || '').toLowerCase()) + '"></span>' +
-      '<span class="cuerpo"><div class="desc">Aporte de ' + esc(r.nombre) + '</div>' +
+      '<span class="cuerpo"><div class="desc">Ingreso de ' + esc(r.nombre) + '</div>' +
       '<div class="meta">' + esc(fechaCorta(r.fecha)) + ' · ' + esc(r.periodo) + '</div></span>' +
-      '<span class="monto num">' + fmt(r.cantidadReal) + '<small>de ' + fmt(r.porcentaje) + '</small></span></button>';
+      '<span class="monto num">' + fmt(r.porcentaje) + '<small>' + pctDe(r) + '% de ' + fmt(r.salarioQuincenal) + '</small></span></button>';
   }).join('') + (lista.length > 100 ? '<div class="vacio">Mostrando los 100 más recientes.</div>' : '');
 }
 
@@ -802,29 +804,49 @@ $('btnDeleteGasto').addEventListener('click', async function(){
   btn.disabled = false; btn.textContent = 'Eliminar gasto';
 });
 
-/* ---------- Aportes ---------- */
+/* ---------- Ingresos ---------- */
 $('iFecha').value = today();
 
-// Al elegir persona, se rellenan salario y porcentaje con el último aporte suyo
+// Porcentaje del salario que va para el apto: se escoge de la lista; "Debe aportar" = salario × %.
+function llenarPct(sel, pct){
+  var vals = [];
+  for (var p = 10; p <= 100; p += 5) vals.push(p);
+  if (pct && vals.indexOf(pct) === -1) { vals.push(pct); vals.sort(function(a, b){ return a - b; }); }
+  $('iPct').innerHTML = vals.map(function(v){ return '<option value="' + v + '">' + v + '%</option>'; }).join('');
+  $('iPct').value = String(sel);
+}
+function pctDe(i){ return i.salarioQuincenal > 0 ? Math.round(i.porcentaje / i.salarioQuincenal * 100) : 60; }
+function debeCalc(){ return Math.round((Number($('iSalario').value) || 0) * (Number($('iPct').value) || 0) / 100); }
+function actualizarCalc(){
+  var d = debeCalc();
+  $('iCalc').textContent = d ? 'Debe aportar ' + fmt(d) + ' (' + $('iPct').value + '% de ' + fmt(Number($('iSalario').value)) + ')' : '';
+}
+llenarPct(60);
+$('iSalario').addEventListener('input', actualizarCalc);
+$('iPct').addEventListener('change', actualizarCalc);
+
+// Al elegir persona, se rellenan salario y porcentaje con su último ingreso
 $('iPersona').querySelectorAll('button').forEach(function(b){
   b.addEventListener('click', function(){
     if (editingIngreso) return;
     var ult = state.ingresos.filter(function(i){ return i.nombre === b.dataset.p; }).pop();
     if (ult) {
       $('iSalario').value = ult.salarioQuincenal || '';
-      $('iPorcentaje').value = ult.porcentaje || '';
+      llenarPct(pctDe(ult), pctDe(ult));
+      actualizarCalc();
     }
   });
 });
 
 function startEditIngreso(i){
   editingIngreso = i.id;
-  $('ingresoFormTitle').textContent = 'Editar aporte';
+  $('ingresoFormTitle').textContent = 'Editar ingreso';
   setPersona($('iPersona'), i.nombre);
   $('iFecha').value = i.fecha;
   $('iSalario').value = i.salarioQuincenal;
-  $('iPorcentaje').value = i.porcentaje;
-  $('iReal').value = i.cantidadReal;
+  llenarPct(pctDe(i), pctDe(i));
+  $('iReal').value = i.cantidadReal || '';
+  actualizarCalc();
   irAPeriodo(i.periodo);
   $('btnAddIngreso').textContent = 'Guardar cambios';
   $('btnCancelIngreso').hidden = false;
@@ -835,14 +857,15 @@ function startEditIngreso(i){
 
 function cancelEditIngreso(){
   editingIngreso = null;
-  $('ingresoFormTitle').textContent = 'Nuevo aporte';
-  $('btnAddIngreso').textContent = 'Registrar aporte';
+  $('ingresoFormTitle').textContent = 'Nuevo ingreso';
+  $('btnAddIngreso').textContent = 'Registrar ingreso';
   $('btnCancelIngreso').hidden = true;
   $('btnDeleteIngreso').hidden = true;
   $('iFecha').value = today();
   $('iSalario').value = '';
-  $('iPorcentaje').value = '';
+  llenarPct(60);
   $('iReal').value = '';
+  actualizarCalc();
   setPersona($('iPersona'), null);
 }
 $('btnCancelIngreso').addEventListener('click', function(){ cancelEditIngreso(); clearMsg('ingresoMsg'); });
@@ -851,13 +874,12 @@ $('btnAddIngreso').addEventListener('click', async function(){
   var nombre = selectedPersona($('iPersona'));
   var fecha = $('iFecha').value;
   var salario = Number($('iSalario').value);
-  var porcentaje = Number($('iPorcentaje').value);
-  var realTxt = $('iReal').value;
-  var real = Number(realTxt);
+  var porcentaje = debeCalc();
+  var real = Number($('iReal').value) || 0;
   var periodo = state.periodoActual;
 
-  if (!nombre || !fecha || !salario || !porcentaje || realTxt === '') {
-    return setMsg('ingresoMsg', 'err', 'Completa todos los campos.');
+  if (!nombre || !fecha || !salario || !porcentaje) {
+    return setMsg('ingresoMsg', 'err', 'Completa persona, fecha y salario.');
   }
   if (!periodo) {
     return setMsg('ingresoMsg', 'err', 'Primero crea un periodo con el botón + de arriba.');
@@ -874,30 +896,30 @@ $('btnAddIngreso').addEventListener('click', async function(){
     var data = editando
       ? await api('PUT', '/api/ingresos/' + editingIngreso, payload)
       : await api('POST', '/api/ingresos', payload);
-    if (editando) cancelEditIngreso(); else $('iReal').value = '';
+    if (editando) cancelEditIngreso(); else { $('iReal').value = ''; actualizarCalc(); }
     applyData(data);
-    setMsg('ingresoMsg', 'ok', editando ? 'Aporte actualizado.' : 'Aporte registrado.');
+    setMsg('ingresoMsg', 'ok', editando ? 'Ingreso actualizado.' : 'Ingreso registrado.');
   } catch (err) {
     setMsg('ingresoMsg', 'err', err.message || 'No se pudo guardar. Intenta de nuevo.');
   }
   btn.disabled = false;
-  btn.textContent = editingIngreso ? 'Guardar cambios' : 'Registrar aporte';
+  btn.textContent = editingIngreso ? 'Guardar cambios' : 'Registrar ingreso';
 });
 
 $('btnDeleteIngreso').addEventListener('click', async function(){
   if (!editingIngreso) return;
-  if (!confirm('¿Eliminar este aporte? No se puede deshacer.')) return;
+  if (!confirm('¿Eliminar este ingreso? No se puede deshacer.')) return;
   var btn = $('btnDeleteIngreso');
   btn.disabled = true; btn.textContent = 'Eliminando…';
   try {
     var data = await api('DELETE', '/api/ingresos/' + editingIngreso);
     cancelEditIngreso();
     applyData(data);
-    setMsg('ingresoMsg', 'ok', 'Aporte eliminado.');
+    setMsg('ingresoMsg', 'ok', 'Ingreso eliminado.');
   } catch (err) {
     setMsg('ingresoMsg', 'err', err.message || 'No se pudo eliminar. Intenta de nuevo.');
   }
-  btn.disabled = false; btn.textContent = 'Eliminar aporte';
+  btn.disabled = false; btn.textContent = 'Eliminar ingreso';
 });
 
 loadData();
